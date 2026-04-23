@@ -22,7 +22,11 @@ ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
-RUN pnpm run build
+# Bust the build cache on every deploy. Railway injects
+# RAILWAY_GIT_COMMIT_SHA automatically, so each push changes this ARG's
+# value and forces `pnpm run build` to re-run with fresh env vars.
+ARG RAILWAY_GIT_COMMIT_SHA=unknown
+RUN echo "Build for commit $RAILWAY_GIT_COMMIT_SHA" && pnpm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
