@@ -1,7 +1,7 @@
 import "server-only";
-import { eq, desc } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "./client";
-import { paymentPages, customFields } from "./schema";
+import { bills, customFields, paymentPages, transactions } from "./schema";
 import type { PaymentPageConfig, AmountMode, FieldType } from "@/lib/demo-data";
 
 /**
@@ -101,4 +101,53 @@ export async function listCustomFields(pageId: string) {
     .from(customFields)
     .where(eq(customFields.pageId, pageId))
     .orderBy(customFields.displayOrder);
+}
+
+/**
+ * Portal dashboard — outstanding bills for this patient, joined to the page
+ * so the UI can show provider name + slug for the Pay button.
+ */
+export async function getOutstandingBillsForPatient(patientId: string) {
+  return db
+    .select({
+      id: bills.id,
+      amountCents: bills.amountCents,
+      description: bills.description,
+      dueDate: bills.dueDate,
+      slug: paymentPages.slug,
+      provider: paymentPages.title,
+      allowPlans: paymentPages.allowPlans,
+    })
+    .from(bills)
+    .innerJoin(paymentPages, eq(bills.pageId, paymentPages.id))
+    .where(
+      and(eq(bills.patientId, patientId), eq(bills.status, "outstanding")),
+    )
+    .orderBy(desc(bills.createdAt));
+}
+
+/**
+ * Portal dashboard — recent successful payments for this patient.
+ */
+export async function getRecentTransactionsForPatient(
+  patientId: string,
+  limit = 5,
+) {
+  return db
+    .select({
+      id: transactions.id,
+      amountCents: transactions.amountCents,
+      createdAt: transactions.createdAt,
+      provider: paymentPages.title,
+    })
+    .from(transactions)
+    .innerJoin(paymentPages, eq(transactions.pageId, paymentPages.id))
+    .where(
+      and(
+        eq(transactions.patientId, patientId),
+        eq(transactions.status, "succeeded"),
+      ),
+    )
+    .orderBy(desc(transactions.createdAt))
+    .limit(limit);
 }

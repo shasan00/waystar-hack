@@ -7,6 +7,7 @@ import {
   transactions,
   plans,
   paymentPages,
+  bills,
 } from "@/db/schema";
 
 /**
@@ -140,12 +141,14 @@ async function applyPaymentSucceeded(
   const glCode = event.metadata.glCode ?? page.glCodes[0] ?? null;
   const payerEmail = event.metadata.payerEmail ?? null;
   const payerName = event.metadata.payerName || null;
+  const billId = event.metadata.billId || null;
 
   // Upsert keyed on stripe_payment_intent_id (unique index in schema).
   const [txn] = await db
     .insert(transactions)
     .values({
       pageId,
+      billId,
       amountCents: event.amountCents,
       paymentMethod: mapPaymentMethod(event.paymentMethodKind),
       status: "succeeded",
@@ -162,9 +165,18 @@ async function applyPaymentSucceeded(
         amountCents: event.amountCents,
         paymentMethod: mapPaymentMethod(event.paymentMethodKind),
         stripeCustomerId: event.customerId,
+        billId,
       },
     })
     .returning({ id: transactions.id });
+
+  // Mark the bill paid so the portal stops showing it as outstanding.
+  if (billId) {
+    await db
+      .update(bills)
+      .set({ status: "paid", updatedAt: new Date() })
+      .where(eq(bills.id, billId));
+  }
 
   await sendConfirmation({
     kind: "payment",

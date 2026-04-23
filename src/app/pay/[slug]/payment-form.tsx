@@ -26,10 +26,12 @@ export function PaymentForm({
   config,
   planChoice,
   installmentNumber,
+  billId,
 }: {
   config: PaymentPageConfig;
   planChoice: number | null;
   installmentNumber: number;
+  billId: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -79,6 +81,7 @@ export function PaymentForm({
           amountCents: planChoice ? (config.fixedAmount ?? amountCents) : amountCents,
           payerEmail: email,
           payerName: name,
+          ...(billId ? { billId } : {}),
           ...(planChoice ? { installmentCount: planChoice } : {}),
         }),
       });

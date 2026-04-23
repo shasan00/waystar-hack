@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { paymentPages } from "@/db/schema";
+import { bills, paymentPages } from "@/db/schema";
 import { evaluate } from "@/lib/pricing/policy";
 import { createPaymentIntent } from "@/lib/stripe/gateway";
 
@@ -11,6 +11,7 @@ interface Body {
   amountCents?: unknown;
   payerEmail?: unknown;
   payerName?: unknown;
+  billId?: unknown;
 }
 
 export async function POST(
@@ -29,6 +30,7 @@ export async function POST(
   const amountCents = body.amountCents;
   const payerEmail = body.payerEmail;
   const payerName = body.payerName;
+  const billId = typeof body.billId === "string" ? body.billId : null;
 
   if (typeof amountCents !== "number") {
     return NextResponse.json(
@@ -57,6 +59,19 @@ export async function POST(
     return NextResponse.json({ error: "Payment page not found." }, { status: 404 });
   }
 
+  // Validate the bill belongs to this page before we trust its id downstream.
+  if (billId) {
+    const bill = await db.query.bills.findFirst({
+      where: and(eq(bills.id, billId), eq(bills.pageId, page.id)),
+    });
+    if (!bill) {
+      return NextResponse.json(
+        { error: "Bill not found for this page." },
+        { status: 404 },
+      );
+    }
+  }
+
   const result = evaluate({
     page: {
       amountMode: page.amountMode,
@@ -80,6 +95,7 @@ export async function POST(
       payerEmail,
       payerName: payerName as string | undefined,
       glCode: page.glCodes[0] ?? "",
+      billId,
     });
 
     return NextResponse.json({

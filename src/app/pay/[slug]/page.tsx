@@ -12,16 +12,17 @@ export default async function PaymentPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ plan?: string; installment?: string }>;
+  searchParams: Promise<{ plan?: string; installment?: string; bill?: string }>;
 }) {
   const { slug } = await params;
-  const { plan, installment } = await searchParams;
+  const { plan, installment, bill } = await searchParams;
   const config = await getPaymentPageBySlug(slug);
 
   if (!config) return notFound();
 
   const planChoice = plan ? Number(plan) : null;
   const installmentNumber = installment ? Number(installment) : 1;
+  const billId = typeof bill === "string" && bill.length > 0 ? bill : null;
 
   return (
     <main className="relative min-h-screen bg-canvas">
@@ -112,6 +113,7 @@ export default async function PaymentPage({
             config={config}
             planChoice={planChoice}
             installmentNumber={installmentNumber}
+            billId={billId}
           />
         </div>
       </section>

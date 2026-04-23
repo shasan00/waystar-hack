@@ -72,6 +72,7 @@ export async function createPaymentIntent(args: {
   payerEmail: string;
   payerName?: string;
   glCode: string;
+  billId?: string | null;
 }): Promise<{ clientSecret: string; paymentIntentId: string }> {
   const pi = await getStripe().paymentIntents.create({
     amount: args.amountCents,
@@ -83,6 +84,7 @@ export async function createPaymentIntent(args: {
       payerEmail: args.payerEmail,
       payerName: args.payerName ?? '',
       glCode: args.glCode,
+      ...(args.billId ? { billId: args.billId } : {}),
     },
   });
   return { clientSecret: pi.client_secret!, paymentIntentId: pi.id };
