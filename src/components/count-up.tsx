@@ -2,17 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 
+const currencyFormatter = (n: number) =>
+  (n / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+const FORMATTERS = {
+  currencyCents: currencyFormatter,
+} as const;
+
 export function CountUp({
   to,
   durationMs = 700,
-  format,
+  format = "currencyCents",
   className,
 }: {
   to: number;
   durationMs?: number;
-  format: (n: number) => string;
+  format?: keyof typeof FORMATTERS;
   className?: string;
 }) {
+  const formatFn = FORMATTERS[format];
   const [value, setValue] = useState(0);
   const start = useRef<number | null>(null);
   const prefersReducedMotion = useRef(false);
@@ -43,7 +51,7 @@ export function CountUp({
 
   return (
     <span className={className} aria-live="polite">
-      {format(value)}
+      {formatFn(value)}
     </span>
   );
 }
