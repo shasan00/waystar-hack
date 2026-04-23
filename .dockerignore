@@ -3,8 +3,13 @@ node_modules
 .git
 .env
 .env.local
+.env.*.local
 npm-debug.log
+pnpm-debug.log
+.pnpm-debug.log
 README.md
+KICKOFF.md
+docs
 .agents
 .claude
 *.docx
