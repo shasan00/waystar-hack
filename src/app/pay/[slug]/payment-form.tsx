@@ -384,7 +384,9 @@ function FloatingInput({
 }) {
   const id = useId();
   const helperId = `${id}-helper`;
-  const filled = value.length > 0;
+  // Date inputs render their own mm/dd/yyyy placeholder; force the label to
+  // float so the two don't overlap.
+  const filled = value.length > 0 || type === "date";
 
   return (
     <div>
