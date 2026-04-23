@@ -1,35 +1,28 @@
-# Quick Payment Pages (QPP)
+# Waystar QPP — Hackathon
 
-Waystar Hackathon — hosted branded payment pages for service providers.
+Quick Payment Pages for healthcare providers. Built for the Waystar Hackathon.
+
+**Read [`KICKOFF.md`](./KICKOFF.md) first** — stack, routes, schema, ownership, timeline.
+
+## Run locally
+
+```bash
+pnpm install
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+The bottom-right **dev toolbar** lets you jump between: home · Login · Admin · Patient portal · Demo payment page · Simulated SMS inbox.
 
 ## Stack
 
-- Next.js 14 (App Router) + TypeScript
-- Tailwind + shadcn/ui
-- Drizzle ORM + Postgres (Railway)
-- Stripe (Payment Element + Subscriptions)
-- Better Auth, Resend, UploadThing
+Next.js 16 · TypeScript · Tailwind v4 · shadcn/ui (Radix/Nova) · Geist + Instrument Serif · Supabase (to wire) · Drizzle (to wire) · Stripe Payment Element (to wire) · Resend (to wire) · Twilio WhatsApp sandbox (to wire) · Anthropic Claude (to wire) · Deploy: Vercel.
 
-## Local development
+## Aesthetic
 
-```bash
-cp .env.example .env
-npm install
-npm run dev
-```
+"Clinical Confidence" — editorial serif moments (Instrument Serif on the amount), warm off-white canvas, one signal orange (`--waystar #F15A22`) at ≤8% of pixels, 6px radius. Tokens live in `src/app/globals.css`.
 
-Visit http://localhost:3000 and http://localhost:3000/api/health.
+## Deploy
 
-## Scripts
-
-- `npm run dev` — Next dev server
-- `npm run build` — production build
-- `npm run start` — production server
-- `npm run db:generate` — generate Drizzle migrations
-- `npm run db:migrate` — apply migrations
-- `npm run db:push` — push schema (dev)
-- `npm run db:studio` — open Drizzle Studio
-
-## Deployment
-
-Railway via `Dockerfile` with `output: 'standalone'`. Set `DATABASE_URL` plus the keys in `.env.example`.
+Push to GitHub, import to Vercel, set env vars per `KICKOFF.md` § Environment. No config needed.

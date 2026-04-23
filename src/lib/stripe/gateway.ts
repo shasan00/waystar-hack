@@ -1,9 +1,18 @@
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-  typescript: true,
-});
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+  if (_stripe) return _stripe;
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error('STRIPE_SECRET_KEY is not set');
+  }
+  _stripe = new Stripe(key, {
+    apiVersion: '2025-02-24.acacia',
+    typescript: true,
+  });
+  return _stripe;
+}
 
 export type PaymentMethodKind = 'card' | 'wallet_apple' | 'wallet_google' | 'wallet_link';
 
@@ -64,7 +73,7 @@ export async function createPaymentIntent(args: {
   payerName?: string;
   glCode: string;
 }): Promise<{ clientSecret: string; paymentIntentId: string }> {
-  const pi = await stripe.paymentIntents.create({
+  const pi = await getStripe().paymentIntents.create({
     amount: args.amountCents,
     currency: 'usd',
     automatic_payment_methods: { enabled: true },
@@ -93,13 +102,13 @@ export async function createSubscriptionForPlan(args: {
   clientSecret: string;
   cancelAt: number;
 }> {
-  const customer = await stripe.customers.create({
+  const customer = await getStripe().customers.create({
     email: args.payerEmail,
     name: args.payerName,
     metadata: { pageId: args.pageId },
   });
 
-  const price = await stripe.prices.create({
+  const price = await getStripe().prices.create({
     unit_amount: args.installmentAmountCents,
     currency: 'usd',
     recurring: { interval: 'month' },
@@ -109,7 +118,7 @@ export async function createSubscriptionForPlan(args: {
   const now = Math.floor(Date.now() / 1000);
   const cancelAt = now + args.installmentCount * 30 * 24 * 60 * 60;
 
-  const sub = await stripe.subscriptions.create({
+  const sub = await getStripe().subscriptions.create({
     customer: customer.id,
     items: [{ price: price.id }],
     cancel_at: cancelAt,
@@ -138,11 +147,11 @@ export async function createSubscriptionForPlan(args: {
 }
 
 export function verifyWebhookSignature(rawBody: string, signatureHeader: string): Stripe.Event {
-  return stripe.webhooks.constructEvent(
-    rawBody,
-    signatureHeader,
-    process.env.STRIPE_WEBHOOK_SECRET!,
-  );
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) {
+    throw new Error('STRIPE_WEBHOOK_SECRET is not set');
+  }
+  return getStripe().webhooks.constructEvent(rawBody, signatureHeader, secret);
 }
 
 export function parseWebhookEvent(event: Stripe.Event): DomainEvent {
@@ -247,4 +256,4 @@ function classifyPaymentMethod(pi: Stripe.PaymentIntent): PaymentMethodKind {
   return 'card';
 }
 
-export { stripe };
+export { getStripe };

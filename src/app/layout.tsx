@@ -1,22 +1,26 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Manrope, Geist_Mono } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
+import { DevRoleToolbar } from "@/components/dev-role-toolbar";
 import "./globals.css";
-import { cn } from "@/lib/utils";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
+
+const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  weight: "100 900",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Quick Payment Pages",
-  description: "Hosted branded payment pages for service providers.",
+  title: "Quick Payment Pages — Waystar",
+  description:
+    "Configure branded, self-service payment pages for your patients. Built for healthcare billing teams.",
 };
 
 export default function RootLayout({
@@ -25,8 +29,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn(geistSans.variable, geistMono.variable)}>
-      <body className="font-sans antialiased">{children}</body>
+    <html
+      lang="en"
+      className={`${manrope.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col bg-canvas text-ink">
+        {children}
+        <DevRoleToolbar />
+        <Toaster position="top-center" />
+      </body>
     </html>
   );
 }
