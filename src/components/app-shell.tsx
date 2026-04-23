@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Wordmark } from "@/components/wordmark";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export type NavItem = {
   href: string;
@@ -70,14 +71,14 @@ export function AppShell({
         </nav>
         <div className="mt-auto border-t border-rule p-3">
           <div className="flex items-center gap-3 rounded-md px-2 py-2">
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-waystar-wash text-[11px] font-mono uppercase text-waystar-deep">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-waystar-wash text-[11px] font-mono uppercase text-waystar-deep">
               {user.name
                 .split(" ")
                 .map((w) => w[0])
                 .slice(0, 2)
                 .join("")}
             </div>
-            <div className="min-w-0 leading-tight">
+            <div className="min-w-0 flex-1 leading-tight">
               <div className="truncate text-[12.5px] font-medium text-ink">
                 {user.name}
               </div>
@@ -85,6 +86,9 @@ export function AppShell({
                 {user.subtitle ?? user.email}
               </div>
             </div>
+          </div>
+          <div className="mt-1 flex items-center justify-end px-2">
+            <SignOutButton />
           </div>
         </div>
       </aside>
