@@ -204,6 +204,53 @@ export function PageEditorClient({ initial }: { initial: EditorInitial }) {
     return `${window.location.origin}/pay/${initial.slug}`;
   }, [initial.slug]);
 
+  const iframeSnippet = useMemo(
+    () =>
+      `<iframe src="${publicUrl}" width="100%" height="800" style="border:0"></iframe>`,
+    [publicUrl],
+  );
+
+  const [qrPreview, setQrPreview] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const QRCode = (await import("qrcode")).default;
+      const data = await QRCode.toDataURL(publicUrl, { margin: 1, width: 192 });
+      if (!cancelled) setQrPreview(data);
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [publicUrl]);
+
+  const downloadQr = useCallback(
+    async (format: "png" | "svg") => {
+      const QRCode = (await import("qrcode")).default;
+      const filename = `${initial.slug}-qr.${format}`;
+      let href: string;
+      let revoke: (() => void) | null = null;
+      if (format === "png") {
+        href = await QRCode.toDataURL(publicUrl, { margin: 1, width: 512 });
+      } else {
+        const svg = await QRCode.toString(publicUrl, {
+          type: "svg",
+          margin: 1,
+        });
+        const blob = new Blob([svg], { type: "image/svg+xml" });
+        href = URL.createObjectURL(blob);
+        revoke = () => URL.revokeObjectURL(href);
+      }
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      if (revoke) setTimeout(revoke, 0);
+    },
+    [publicUrl, initial.slug],
+  );
+
   // Build PATCH payload. Dollar strings → cents; empty → null.
   const patchPayload = useMemo<PageUpdateInput>(() => {
     const dollarsToCents = (s: string): number | null => {
@@ -554,29 +601,50 @@ export function PageEditorClient({ initial }: { initial: EditorInitial }) {
                 <ShareRow
                   icon={<QRCodeIcon />}
                   title="QR code"
-                  subtitle="Generated in the Distribution helpers slice."
+                  subtitle="Resolves to the public URL when scanned"
                   action={
-                    <span className="text-[11px] text-ink-muted">coming</span>
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => downloadQr("png")}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-rule bg-white px-2.5 py-1.5 text-[12px] hover:border-waystar"
+                      >
+                        PNG
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadQr("svg")}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-rule bg-white px-2.5 py-1.5 text-[12px] hover:border-waystar"
+                      >
+                        SVG
+                      </button>
+                    </div>
                   }
                 />
+                {qrPreview && (
+                  <div className="flex justify-center rounded-md border border-rule bg-canvas p-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={qrPreview} alt="QR preview" className="h-32 w-32" />
+                  </div>
+                )}
                 <ShareRow
                   icon={<SmsIcon />}
                   title="Send by text"
-                  subtitle="Provider differentiator — not part of this slice."
+                  subtitle="Text this page to a specific patient's phone"
                   action={
-                    <span className="text-[11px] text-ink-muted">later</span>
+                    <a
+                      href={`sms:?&body=${encodeURIComponent(`Pay your balance here: ${publicUrl}`)}`}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-waystar px-2.5 py-1.5 text-[12px] font-medium text-white hover:bg-waystar-deep"
+                    >
+                      Compose
+                    </a>
                   }
                 />
                 <ShareRow
                   icon={<CopyIcon />}
                   title="Embed iframe"
-                  subtitle="Copy a snippet to drop into an external site."
-                  action={
-                    <CopyButton
-                      text={`<iframe src="${publicUrl}" width="520" height="720" style="border:0" loading="lazy"></iframe>`}
-                      label="Copy snippet"
-                    />
-                  }
+                  subtitle={iframeSnippet}
+                  action={<CopyButton text={iframeSnippet} label="Copy snippet" />}
                 />
               </div>
             </div>
