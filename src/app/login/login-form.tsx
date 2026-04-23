@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
 
 export function LoginForm({
@@ -10,6 +10,8 @@ export function LoginForm({
   initialRole: "admin" | "patient";
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
   const [role, setRole] = useState<"admin" | "patient">(initialRole);
   const [email, setEmail] = useState(
     initialRole === "admin"
@@ -30,7 +32,13 @@ export function LoginForm({
       setError(res.error.message ?? "Sign-in failed.");
       return;
     }
-    router.push(role === "admin" ? "/admin" : "/portal");
+    const dest =
+      redirectParam && redirectParam.startsWith("/")
+        ? redirectParam
+        : role === "admin"
+          ? "/admin"
+          : "/portal";
+    router.push(dest);
     router.refresh();
   }
 
