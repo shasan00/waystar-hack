@@ -22,6 +22,12 @@ export default function Home() {
                 Patient
               </Link>
               <Link
+                href="/signup"
+                className="inline-flex h-8 items-center rounded-md border border-rule bg-white px-3 text-[12.5px] font-medium text-ink hover:border-waystar hover:text-waystar-deep"
+              >
+                Create account
+              </Link>
+              <Link
                 href="/login"
                 className="inline-flex h-8 items-center rounded-md bg-waystar px-3 text-[12.5px] font-medium text-white hover:bg-waystar-deep"
               >
