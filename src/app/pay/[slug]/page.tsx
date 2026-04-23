@@ -6,6 +6,7 @@ import { getPaymentPageBySlug } from "@/db/queries";
 import { Wordmark, ShieldBadge } from "@/components/wordmark";
 import { CountUp } from "@/components/count-up";
 import { PaymentForm } from "./payment-form";
+import { PlanAssistant } from "./plan-assistant";
 
 export default async function PaymentPage({
   params,
@@ -84,7 +85,20 @@ export default async function PaymentPage({
             {config.amountMode === "fixed" &&
               config.allowPlans &&
               !planChoice && (
-                <PlanOptions slug={config.slug} total={config.fixedAmount!} />
+                <>
+                  <PlanOptions
+                    slug={config.slug}
+                    total={config.fixedAmount!}
+                    options={config.planInstallments ?? []}
+                  />
+                  {(config.planInstallments?.length ?? 0) > 0 && (
+                    <PlanAssistant
+                      slug={config.slug}
+                      total={config.fixedAmount!}
+                      options={config.planInstallments ?? []}
+                    />
+                  )}
+                </>
               )}
             {planChoice && config.fixedAmount && (
               <p className="mt-3 text-[13px] text-ink-muted">
@@ -174,11 +188,16 @@ function HeroAmount({
 function PlanOptions({
   slug,
   total,
+  options: configured,
 }: {
   slug: string;
   total: number;
+  options: number[];
 }) {
-  const options = [3, 6];
+  const options = (configured.length > 0 ? configured : [3, 6])
+    .filter((n) => total % n === 0)
+    .sort((a, b) => a - b);
+  if (options.length === 0) return null;
   return (
     <div className="mt-6 rounded-lg border border-rule bg-white/70 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">

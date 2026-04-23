@@ -74,6 +74,11 @@ RESEND_FROM_EMAIL="Waystar QPP <onboarding@resend.dev>"
 
 # UploadThing (optional — for future logo upload)
 UPLOADTHING_TOKEN=sk_live_...
+
+# Anthropic (powers the AI payment-plan assistant on /pay/<slug>)
+# Without this key, the assistant falls back to a deterministic
+# "largest installment count" suggestion so the UI still works.
+ANTHROPIC_API_KEY=sk-ant-api03-...
 ```
 
 For local webhook testing:
