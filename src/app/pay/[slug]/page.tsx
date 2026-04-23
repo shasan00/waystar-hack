@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { DEMO_PAGES, formatMoney } from "@/lib/demo-data";
+import { formatMoney } from "@/lib/demo-data";
 import type { PaymentPageConfig } from "@/lib/demo-data";
+import { getPaymentPageBySlug } from "@/db/queries";
 import { Wordmark, ShieldBadge } from "@/components/wordmark";
 import { CountUp } from "@/components/count-up";
 import { PaymentForm } from "./payment-form";
@@ -15,7 +16,7 @@ export default async function PaymentPage({
 }) {
   const { slug } = await params;
   const { plan, installment } = await searchParams;
-  const config = DEMO_PAGES[slug];
+  const config = await getPaymentPageBySlug(slug);
 
   if (!config) return notFound();
 

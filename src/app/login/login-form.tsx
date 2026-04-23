@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "@/lib/auth-client";
 
 export function LoginForm({
   initialRole,
@@ -17,13 +18,20 @@ export function LoginForm({
   );
   const [password, setPassword] = useState("demopassword");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    // TODO: wire Supabase Auth. For now, route by role.
-    await new Promise((r) => setTimeout(r, 450));
+    setError(null);
+    const res = await signIn.email({ email, password });
+    if (res.error) {
+      setLoading(false);
+      setError(res.error.message ?? "Sign-in failed.");
+      return;
+    }
     router.push(role === "admin" ? "/admin" : "/portal");
+    router.refresh();
   }
 
   return (
@@ -93,6 +101,15 @@ export function LoginForm({
             className="w-full bg-transparent px-3 py-3 text-[14px] outline-none"
           />
         </Field>
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700"
+          >
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"

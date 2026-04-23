@@ -1,10 +1,26 @@
 "use client";
 
-import { useMemo, useState, useId } from "react";
+import { useEffect, useMemo, useState, useId } from "react";
 import { useRouter } from "next/navigation";
+import { loadStripe, type Stripe as StripeJs } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
 import type { PaymentPageConfig, CustomField } from "@/lib/demo-data";
 import { formatMoney } from "@/lib/demo-data";
 import { toast } from "sonner";
+
+const STRIPE_PUBLISHABLE_KEY =
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+
+let _stripePromise: Promise<StripeJs | null> | null = null;
+function getStripePromise() {
+  if (!_stripePromise) _stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
+  return _stripePromise;
+}
 
 export function PaymentForm({
   config,
@@ -15,13 +31,14 @@ export function PaymentForm({
   planChoice: number | null;
   installmentNumber: number;
 }) {
-  const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [userAmount, setUserAmount] = useState<string>("");
-  const [card, setCard] = useState({ number: "", exp: "", cvc: "", zip: "" });
+
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState(false);
 
   const amountCents = useMemo(() => {
     if (config.amountMode === "fixed" && config.fixedAmount) {
@@ -43,28 +60,84 @@ export function PaymentForm({
     return amountCents > 0;
   }, [config, amountCents]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!amountOk) {
-      toast.error("Please enter a valid amount.");
-      return;
+  const detailsOk =
+    name.trim().length > 0 &&
+    email.includes("@") &&
+    config.fields.every(
+      (f) => !f.required || (fieldValues[f.id] ?? "").length > 0,
+    );
+
+  async function initPayment() {
+    setInitError(null);
+    setInitializing(true);
+    try {
+      const endpoint = planChoice ? "payment-plan" : "payment-intent";
+      const res = await fetch(`/api/public/pages/${config.slug}/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amountCents: planChoice ? (config.fixedAmount ?? amountCents) : amountCents,
+          payerEmail: email,
+          payerName: name,
+          ...(planChoice ? { installmentCount: planChoice } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to start payment.");
+      }
+      setClientSecret(data.clientSecret);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to start payment.";
+      setInitError(msg);
+      toast.error(msg);
+    } finally {
+      setInitializing(false);
     }
-    setSubmitting(true);
-    // Simulated payment — Person B will wire to Stripe Payment Intent.
-    await new Promise((r) => setTimeout(r, 900));
-    const params = new URLSearchParams({
-      amount: String(amountCents),
-      name,
-      email,
-      ...(planChoice ? { plan: String(planChoice) } : {}),
-      ...(planChoice ? { installment: String(installmentNumber) } : {}),
-    });
-    router.push(`/pay/${config.slug}/success?${params.toString()}`);
+  }
+
+  if (!STRIPE_PUBLISHABLE_KEY) {
+    return (
+      <p className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
+        Stripe is not configured. Set <code>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code>.
+      </p>
+    );
+  }
+
+  if (clientSecret) {
+    return (
+      <Elements
+        stripe={getStripePromise()}
+        options={{ clientSecret, appearance: { theme: "stripe" } }}
+      >
+        <StripeCheckout
+          slug={config.slug}
+          amountCents={amountCents}
+          planChoice={planChoice}
+          installmentNumber={installmentNumber}
+          payerEmail={email}
+          payerName={name}
+        />
+      </Elements>
+    );
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      {/* Amount input for non-fixed modes */}
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!amountOk) {
+          toast.error("Please enter a valid amount.");
+          return;
+        }
+        if (!detailsOk) {
+          toast.error("Please complete the required fields.");
+          return;
+        }
+        initPayment();
+      }}
+      noValidate
+    >
       {config.amountMode !== "fixed" && (
         <Section title="Amount">
           <FloatingInput
@@ -123,64 +196,28 @@ export function PaymentForm({
         </Section>
       )}
 
-      <Section title="Payment method" subtle>
-        {/* Placeholder — Person B will swap for Stripe Payment Element */}
-        <div className="grid gap-3">
-          <FloatingInput
-            label="Card number"
-            value={card.number}
-            onChange={(v) => setCard({ ...card, number: v })}
-            placeholder="1234 1234 1234 1234"
-            autoComplete="cc-number"
-            inputMode="numeric"
-            required
-          />
-          <div className="grid grid-cols-3 gap-3">
-            <FloatingInput
-              label="Expiry"
-              value={card.exp}
-              onChange={(v) => setCard({ ...card, exp: v })}
-              placeholder="MM / YY"
-              autoComplete="cc-exp"
-              required
-            />
-            <FloatingInput
-              label="CVC"
-              value={card.cvc}
-              onChange={(v) => setCard({ ...card, cvc: v })}
-              placeholder="123"
-              autoComplete="cc-csc"
-              inputMode="numeric"
-              required
-            />
-            <FloatingInput
-              label="Zip"
-              value={card.zip}
-              onChange={(v) => setCard({ ...card, zip: v })}
-              autoComplete="postal-code"
-              inputMode="numeric"
-              required
-            />
-          </div>
-          <p className="text-[11px] text-ink-muted">
-            Test with <span className="font-mono">4242 4242 4242 4242</span>,
-            any future expiry, any CVC. No real card will be charged.
-          </p>
-        </div>
-      </Section>
+      {initError && (
+        <p
+          role="alert"
+          className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700"
+        >
+          {initError}
+        </p>
+      )}
 
       <button
         type="submit"
-        disabled={submitting || !amountOk}
+        disabled={initializing || !amountOk || !detailsOk}
         className="group relative mt-2 flex h-[52px] w-full items-center justify-center gap-2 rounded-md bg-waystar px-6 text-[15px] font-medium text-white transition-colors hover:bg-waystar-deep disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {submitting ? (
+        {initializing ? (
           <>
-            <Spinner /> Processing…
+            <Spinner /> Preparing…
           </>
         ) : (
           <>
-            Pay <span className="tabular">{formatMoney(amountCents || 0)}</span>
+            Continue to payment —{" "}
+            <span className="tabular">{formatMoney(amountCents || 0)}</span>
             {planChoice && (
               <span className="ml-1 text-[12px] opacity-80">
                 (1 of {planChoice})
@@ -194,6 +231,102 @@ export function PaymentForm({
       <p className="mt-4 flex items-center justify-center gap-2 text-center text-[11px] text-ink-muted">
         <LockIcon /> Encrypted. PCI-compliant. No card data touches our servers.
       </p>
+    </form>
+  );
+}
+
+function StripeCheckout({
+  slug,
+  amountCents,
+  planChoice,
+  installmentNumber,
+  payerEmail,
+  payerName,
+}: {
+  slug: string;
+  amountCents: number;
+  planChoice: number | null;
+  installmentNumber: number;
+  payerEmail: string;
+  payerName: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Hard-refresh to success page via return_url — keeps flow robust even if
+  // the client-side confirm resolves with a redirect-required method.
+  const returnUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    const url = new URL(`/pay/${slug}/success`, window.location.origin);
+    url.searchParams.set("amount", String(amountCents));
+    url.searchParams.set("email", payerEmail);
+    url.searchParams.set("name", payerName);
+    if (planChoice) {
+      url.searchParams.set("plan", String(planChoice));
+      url.searchParams.set("installment", String(installmentNumber));
+    }
+    return url.toString();
+  }, [slug, amountCents, payerEmail, payerName, planChoice, installmentNumber]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setSubmitting(true);
+    setError(null);
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: returnUrl },
+    });
+    if (error) {
+      setError(error.message ?? "Payment failed.");
+      setSubmitting(false);
+      return;
+    }
+    // No redirect required → webhook will land the transaction; go to success.
+    router.push(returnUrl);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Section title="Payment method">
+        <div className="rounded-md border border-rule bg-white p-4">
+          <PaymentElement options={{ layout: "tabs" }} />
+        </div>
+      </Section>
+
+      {error && (
+        <p
+          role="alert"
+          className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700"
+        >
+          {error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={!stripe || submitting}
+        className="group relative mt-2 flex h-[52px] w-full items-center justify-center gap-2 rounded-md bg-waystar px-6 text-[15px] font-medium text-white transition-colors hover:bg-waystar-deep disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {submitting ? (
+          <>
+            <Spinner /> Processing…
+          </>
+        ) : (
+          <>
+            Pay <span className="tabular">{formatMoney(amountCents)}</span>
+            {planChoice && (
+              <span className="ml-1 text-[12px] opacity-80">
+                (1 of {planChoice})
+              </span>
+            )}
+            <ArrowRight />
+          </>
+        )}
+      </button>
     </form>
   );
 }
