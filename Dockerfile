@@ -13,6 +13,15 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# NEXT_PUBLIC_* vars are inlined into the client bundle at build time.
+# Declaring them as ARG lets Railway pass the matching service variable
+# through as --build-arg so `next build` can see them.
+ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+
 RUN pnpm run build
 
 FROM node:20-alpine AS runner
