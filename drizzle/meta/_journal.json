@@ -8,6 +8,13 @@
       "when": 1776964459083,
       "tag": "0000_aspiring_slapstick",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776971825588,
+      "tag": "0001_furry_argent",
+      "breakpoints": true
     }
   ]
 }

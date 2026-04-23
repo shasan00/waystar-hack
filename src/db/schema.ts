@@ -260,16 +260,41 @@ export const plans = pgTable(
   "plans",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    billId: uuid("bill_id")
-      .notNull()
-      .references(() => bills.id, { onDelete: "cascade" }),
+    // Nullable — plans created from a public /pay/[slug] payment don't have
+    // a pre-existing bill row. Plans created from the patient portal still do.
+    billId: uuid("bill_id").references(() => bills.id, { onDelete: "cascade" }),
+    pageId: uuid("page_id").references(() => paymentPages.id, {
+      onDelete: "restrict",
+    }),
     totalAmountCents: integer("total_amount_cents").notNull(),
     installmentCount: integer("installment_count").notNull(),
     installmentAmountCents: integer("installment_amount_cents").notNull(),
     status: planStatusEnum("status").notNull().default("active"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    stripeCustomerId: text("stripe_customer_id"),
+    payerEmail: text("payer_email"),
+    payerName: text("payer_name"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("plans_bill_idx").on(t.billId)],
+  (t) => [
+    index("plans_bill_idx").on(t.billId),
+    index("plans_page_idx").on(t.pageId),
+    uniqueIndex("plans_stripe_sub_idx").on(t.stripeSubscriptionId),
+  ],
+);
+
+export const webhookEvents = pgTable(
+  "webhook_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    stripeEventId: text("stripe_event_id").notNull(),
+    eventType: text("event_type").notNull(),
+    payload: jsonb("payload").notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("webhook_events_stripe_event_idx").on(t.stripeEventId)],
 );
 
 export const transactions = pgTable(
@@ -380,6 +405,7 @@ export const paymentPagesRelations = relations(paymentPages, ({ one, many }) => 
   fields: many(customFields),
   transactions: many(transactions),
   bills: many(bills),
+  plans: many(plans),
 }));
 
 export const customFieldsRelations = relations(customFields, ({ one, many }) => ({
@@ -407,6 +433,10 @@ export const plansRelations = relations(plans, ({ one, many }) => ({
   bill: one(bills, {
     fields: [plans.billId],
     references: [bills.id],
+  }),
+  page: one(paymentPages, {
+    fields: [plans.pageId],
+    references: [paymentPages.id],
   }),
   transactions: many(transactions),
 }));
