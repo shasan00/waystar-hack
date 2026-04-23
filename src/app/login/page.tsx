@@ -34,9 +34,6 @@ export default async function LoginPage({
               outstanding balance in seconds.
             </p>
           </div>
-          <div className="text-[11px] text-ink-muted">
-            HIPAA-ready · PCI-SAQ-A · WCAG 2.1 AA
-          </div>
         </div>
 
         {/* Right: form side */}

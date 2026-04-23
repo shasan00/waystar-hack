@@ -104,9 +104,6 @@ export default function SignUpPage() {
               payment. Your data is encrypted in transit and at rest.
             </p>
           </div>
-          <div className="text-[12px] text-ink-muted">
-            Secured by Stripe · WCAG 2.1 AA
-          </div>
         </aside>
 
         <section className="flex items-center justify-center px-6 py-12 md:px-10">
