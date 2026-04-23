@@ -1,7 +1,7 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "./client";
-import { paymentPages } from "./schema";
+import { paymentPages, customFields } from "./schema";
 import type { PaymentPageConfig, AmountMode, FieldType } from "@/lib/demo-data";
 
 /**
@@ -55,4 +55,50 @@ export async function getPaymentPageBySlug(
         placeholder: f.placeholder ?? undefined,
       })),
   };
+}
+
+/**
+ * Admin list view — all pages for the given org, newest first.
+ * Returns the raw row shape; the caller (admin UI) formats as needed.
+ */
+export async function listAdminPages(orgId: string) {
+  return db
+    .select({
+      id: paymentPages.id,
+      slug: paymentPages.slug,
+      title: paymentPages.title,
+      amountMode: paymentPages.amountMode,
+      fixedAmountCents: paymentPages.fixedAmountCents,
+      minAmountCents: paymentPages.minAmountCents,
+      maxAmountCents: paymentPages.maxAmountCents,
+      isActive: paymentPages.isActive,
+      createdAt: paymentPages.createdAt,
+    })
+    .from(paymentPages)
+    .where(eq(paymentPages.orgId, orgId))
+    .orderBy(desc(paymentPages.createdAt));
+}
+
+/**
+ * Admin detail view — full row + ordered custom fields.
+ * Returns null if the page doesn't belong to the caller's org.
+ */
+export async function getAdminPageById(pageId: string, orgId: string) {
+  const page = await db.query.paymentPages.findFirst({
+    where: eq(paymentPages.id, pageId),
+    with: { fields: true, org: true },
+  });
+  if (!page || page.orgId !== orgId) return null;
+  return {
+    ...page,
+    fields: [...page.fields].sort((a, b) => a.displayOrder - b.displayOrder),
+  };
+}
+
+export async function listCustomFields(pageId: string) {
+  return db
+    .select()
+    .from(customFields)
+    .where(eq(customFields.pageId, pageId))
+    .orderBy(customFields.displayOrder);
 }
