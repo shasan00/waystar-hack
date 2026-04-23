@@ -193,6 +193,9 @@ export function PageEditorClient({ initial }: { initial: EditorInitial }) {
     initial.emailTemplateBody ?? "",
   );
   const [allowPlans, setAllowPlans] = useState(initial.allowPlans);
+  const [planInstallmentOptions, setPlanInstallmentOptions] = useState<
+    number[]
+  >(initial.planInstallmentOptions ?? []);
   const [isActive, setIsActive] = useState(initial.isActive);
   const [tab, setTab] = useState<TabId>("branding");
 
@@ -230,6 +233,7 @@ export function PageEditorClient({ initial }: { initial: EditorInitial }) {
       emailTemplateBody:
         emailTemplate.trim().length === 0 ? null : emailTemplate,
       allowPlans,
+      planInstallmentOptions,
       isActive,
     };
     return normalizeAmountFields(base);
@@ -247,6 +251,7 @@ export function PageEditorClient({ initial }: { initial: EditorInitial }) {
     glCodes,
     emailTemplate,
     allowPlans,
+    planInstallmentOptions,
     isActive,
   ]);
 
@@ -461,6 +466,8 @@ export function PageEditorClient({ initial }: { initial: EditorInitial }) {
                   setMaxAmount={setMaxAmount}
                   allowPlans={allowPlans}
                   setAllowPlans={setAllowPlans}
+                  planInstallmentOptions={planInstallmentOptions}
+                  setPlanInstallmentOptions={setPlanInstallmentOptions}
                 />
               )}
               {tab === "fields" && (
@@ -554,10 +561,8 @@ export function PageEditorClient({ initial }: { initial: EditorInitial }) {
                 <ShareRow
                   icon={<QRCodeIcon />}
                   title="QR code"
-                  subtitle="Generated in the Distribution helpers slice."
-                  action={
-                    <span className="text-[11px] text-ink-muted">coming</span>
-                  }
+                  subtitle="Scans to the public URL. Downloadable as PNG or SVG."
+                  action={<QrDownloadButtons pageId={initial.id} />}
                 />
                 <ShareRow
                   icon={<SmsIcon />}
@@ -732,8 +737,18 @@ function AmountTab(props: {
   setMaxAmount: (v: string) => void;
   allowPlans: boolean;
   setAllowPlans: (v: boolean) => void;
+  planInstallmentOptions: number[];
+  setPlanInstallmentOptions: (v: number[]) => void;
 }) {
   const { amountMode } = props;
+  const INSTALLMENT_CHOICES = [2, 3, 4, 6, 12] as const;
+  const toggleInstallment = (n: number) => {
+    const has = props.planInstallmentOptions.includes(n);
+    const next = has
+      ? props.planInstallmentOptions.filter((x) => x !== n)
+      : [...props.planInstallmentOptions, n].sort((a, b) => a - b);
+    props.setPlanInstallmentOptions(next);
+  };
   return (
     <>
       <Section label="Amount mode">
@@ -806,13 +821,53 @@ function AmountTab(props: {
           />
           <div>
             <div className="text-[13px] font-medium text-ink">
-              Allow 3-month or 6-month plans
+              Allow monthly installment plans
             </div>
             <div className="mt-1 text-[12px] text-ink-muted">
-              Patients can split balances over 3 or 6 months.
+              Payers can split the balance over equal monthly installments.
             </div>
           </div>
         </label>
+        {props.allowPlans && (
+          <div className="mt-3 rounded-md border border-rule bg-white p-3">
+            <div className="mb-2 text-[11px] font-mono uppercase tracking-[0.14em] text-ink-muted">
+              Allowed installment counts
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {INSTALLMENT_CHOICES.map((n) => {
+                const active = props.planInstallmentOptions.includes(n);
+                return (
+                  <label
+                    key={n}
+                    className={[
+                      "inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-[12px]",
+                      active
+                        ? "border-waystar bg-waystar-wash text-waystar-deep"
+                        : "border-rule bg-white text-ink hover:border-waystar/40",
+                    ].join(" ")}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={() => toggleInstallment(n)}
+                      className="h-3.5 w-3.5 accent-waystar"
+                    />
+                    {n}-month
+                  </label>
+                );
+              })}
+            </div>
+            {props.planInstallmentOptions.length === 0 && (
+              <p className="mt-2 text-[11.5px] text-destructive">
+                Select at least one installment count or turn off plans above.
+              </p>
+            )}
+            <p className="mt-2 text-[11px] text-ink-muted">
+              Installment counts are only offered when the total divides
+              evenly (no fractional cents).
+            </p>
+          </div>
+        )}
       </Section>
     </>
   );
@@ -1216,6 +1271,69 @@ function ShareRow({
         <div className="truncate text-[12px] text-ink-muted">{subtitle}</div>
       </div>
       {action}
+    </div>
+  );
+}
+
+function QrDownloadButtons({ pageId }: { pageId: string }) {
+  const [busy, setBusy] = useState<"png" | "svg" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const download = async (format: "png" | "svg") => {
+    setBusy(format);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/pages/${pageId}/qr?format=${format}&size=512`,
+      );
+      if (!res.ok) {
+        setError("QR download failed.");
+        setBusy(null);
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      const cd = res.headers.get("content-disposition") ?? "";
+      const match = cd.match(/filename="([^"]+)"/);
+      a.download = match?.[1] ?? `qr.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="inline-flex flex-col items-end gap-1">
+      <div className="inline-flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => download("png")}
+          disabled={busy !== null}
+          className="inline-flex items-center gap-1.5 rounded-md border border-rule bg-white px-2.5 py-1.5 text-[12px] hover:border-waystar disabled:opacity-60"
+        >
+          {busy === "png" ? "…" : "PNG"}
+        </button>
+        <button
+          type="button"
+          onClick={() => download("svg")}
+          disabled={busy !== null}
+          className="inline-flex items-center gap-1.5 rounded-md border border-rule bg-white px-2.5 py-1.5 text-[12px] hover:border-waystar disabled:opacity-60"
+        >
+          {busy === "svg" ? "…" : "SVG"}
+        </button>
+      </div>
+      {error && (
+        <span className="text-[10.5px] text-destructive" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   );
 }
