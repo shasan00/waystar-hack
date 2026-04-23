@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { PageHeader, PageBody } from "@/components/app-shell";
 import { formatMoney } from "@/lib/demo-data";
 import { ArrowRightIcon } from "@/components/icons";
+import { auth } from "@/lib/auth";
 
 const OUTSTANDING = [
   {
@@ -29,13 +31,15 @@ const RECENT = [
   { id: "t2", provider: "Riverside Dental", amount: 27500, date: "2026-03-15" },
 ];
 
-export default function PortalDashboard() {
+export default async function PortalDashboard() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  const firstName = session?.user.name?.split(" ")[0] ?? "there";
   const totalOutstanding = OUTSTANDING.reduce((s, b) => s + b.amount, 0);
   return (
     <>
       <PageHeader
         eyebrow="Your balances"
-        title="Hi Jordan — you have 2 bills outstanding."
+        title={`Hi ${firstName} — you have ${OUTSTANDING.length} bills outstanding.`}
         description="Pay in full or reply PLAN to any of your text reminders to split into monthly payments."
       />
       <PageBody>
