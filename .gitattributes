@@ -1,0 +1,4 @@
+# Normalize all text files to LF in the repo, regardless of OS. Prevents
+# spurious CRLF <-> LF diffs when the working tree is on a Windows-mounted
+# filesystem (WSL /mnt/c, OneDrive, etc).
+* text=auto eol=lf
