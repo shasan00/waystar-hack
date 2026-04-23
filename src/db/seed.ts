@@ -18,7 +18,7 @@
 
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
-import { auth } from "../lib/auth";
+import { hashPassword } from "better-auth/crypto";
 import { db, pool } from "./client";
 import {
   organizations,
@@ -62,20 +62,32 @@ async function createUser(opts: {
   password: string;
   role: "admin" | "patient";
 }): Promise<string> {
-  // Use Better Auth's sign-up API so the password is hashed correctly
-  // and the account row is created.
-  const res = await auth.api.signUpEmail({
-    body: {
-      email: opts.email,
-      password: opts.password,
-      name: opts.name,
-    },
+  // Bypass Better Auth's HTTP API — it hangs at seed time. Insert user +
+  // credential account row directly, using Better Auth's own password hasher
+  // so the produced hash is compatible with auth.api.signInEmail at runtime.
+  const userId = randomUUID();
+  const accountId = randomUUID();
+  const now = new Date();
+  const hash = await hashPassword(opts.password);
+
+  await db.insert(user).values({
+    id: userId,
+    name: opts.name,
+    email: opts.email,
+    emailVerified: true,
+    role: opts.role,
+    createdAt: now,
+    updatedAt: now,
   });
-  const userId = res.user.id;
-  // Stamp our custom role on the user row.
-  await db.execute(
-    `UPDATE "user" SET role = '${opts.role}' WHERE id = '${userId}'` as unknown as never,
-  );
+  await db.insert(account).values({
+    id: accountId,
+    userId,
+    accountId: userId, // Better Auth uses userId as accountId for credentials
+    providerId: "credential",
+    password: hash,
+    createdAt: now,
+    updatedAt: now,
+  });
   return userId;
 }
 
