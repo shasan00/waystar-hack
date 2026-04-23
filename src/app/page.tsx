@@ -74,34 +74,6 @@ export default function Home() {
         </section>
       </div>
 
-      <section className="border-y border-rule bg-white">
-        <div className="mx-auto grid max-w-[1120px] grid-cols-1 divide-rule md:grid-cols-3 md:divide-x">
-          {[
-            {
-              kpi: "30%↑",
-              label: "self-pay collection rate when payers can choose a plan",
-            },
-            {
-              kpi: "<60s",
-              label: "to configure a new Quick Payment Page, branded",
-            },
-            {
-              kpi: "WCAG AA",
-              label: "on every public-facing payment page, by default",
-            },
-          ].map((b) => (
-            <div key={b.kpi} className="px-6 py-10 text-center md:px-10">
-              <div className="tabular font-display text-[40px] leading-none text-waystar md:text-[52px]">
-                {b.kpi}
-              </div>
-              <div className="mx-auto mt-3 max-w-[32ch] text-[13px] text-ink-muted">
-                {b.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <footer>
         <div className="mx-auto flex max-w-[1120px] items-center justify-between px-5 py-6 text-[12px] text-ink-muted">
           <Wordmark size="sm" muted />
