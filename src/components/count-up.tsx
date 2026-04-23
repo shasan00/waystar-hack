@@ -2,17 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 
+interface Props {
+  to: number;
+  durationMs?: number;
+  className?: string;
+  /**
+   * Built-in format modes — keep this a plain string so the component can be
+   * used from server components (Next.js 16 disallows passing function props
+   * across the RSC boundary).
+   */
+  mode?: "currency-cents" | "integer";
+}
+
 export function CountUp({
   to,
   durationMs = 700,
-  format,
   className,
-}: {
-  to: number;
-  durationMs?: number;
-  format: (n: number) => string;
-  className?: string;
-}) {
+  mode = "integer",
+}: Props) {
   const [value, setValue] = useState(0);
   const start = useRef<number | null>(null);
   const prefersReducedMotion = useRef(false);
@@ -43,7 +50,17 @@ export function CountUp({
 
   return (
     <span className={className} aria-live="polite">
-      {format(value)}
+      {format(value, mode)}
     </span>
   );
+}
+
+function format(n: number, mode: Props["mode"]): string {
+  if (mode === "currency-cents") {
+    return (n / 100).toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+    });
+  }
+  return n.toLocaleString("en-US");
 }

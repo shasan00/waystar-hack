@@ -151,15 +151,7 @@ function HeroAmount({
     return (
       <div className="mt-2 flex items-baseline gap-3">
         <span className="tabular font-display text-[72px] leading-none text-waystar md:text-[88px]">
-          <CountUp
-            to={displayCents}
-            format={(n) =>
-              (n / 100).toLocaleString("en-US", {
-                style: "currency",
-                currency: "USD",
-              })
-            }
-          />
+          <CountUp to={displayCents} mode="currency-cents" />
         </span>
         <span className="text-[14px] font-mono uppercase tracking-[0.2em] text-ink-muted">
           USD
