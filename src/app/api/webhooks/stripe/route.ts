@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhookSignature, parseWebhookEvent } from '@/lib/stripe/gateway';
 import { processWebhookEvent } from '@/lib/webhooks/processor';
+import { db } from '@/db/client';
+import { sendConfirmationForTransaction } from '@/lib/email/confirmation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,7 +27,19 @@ export async function POST(req: NextRequest) {
   const domainEvent = parseWebhookEvent(event);
 
   try {
-    await processWebhookEvent(domainEvent, { rawEvent: event });
+    await processWebhookEvent(
+      domainEvent,
+      { rawEvent: event },
+      {
+        db,
+        sendConfirmation: async (args) => {
+          // Fire-and-log: a failed email must not re-queue the webhook
+          // (Stripe would retry and double-apply state). The confirmation
+          // module already catches and logs internally.
+          await sendConfirmationForTransaction(args.transactionId);
+        },
+      },
+    );
   } catch (err) {
     console.error('[stripe webhook] processing failed', {
       stripeEventId: event.id,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
 
@@ -12,6 +13,7 @@ export function LoginForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect");
+  const registered = searchParams.get("registered") === "true";
   const [role, setRole] = useState<"admin" | "patient">(initialRole);
   const [email, setEmail] = useState(
     initialRole === "admin"
@@ -132,12 +134,34 @@ export function LoginForm({
         </button>
       </form>
 
+      {registered && (
+        <p
+          role="status"
+          className="mt-4 rounded-md border border-success/30 bg-white px-3 py-2 text-[12.5px] text-success"
+        >
+          Account created. Sign in with your new credentials.
+        </p>
+      )}
+
       <div className="mt-4 flex items-center justify-between text-[12px] text-ink-muted">
         <span>
           Demo creds are pre-filled.{" "}
           <span className="text-ink">Click sign in.</span>
         </span>
       </div>
+
+      {role === "patient" && (
+        <p className="mt-3 text-[12.5px] text-ink-muted">
+          New patient?{" "}
+          <Link
+            href="/signup"
+            className="text-waystar-deep underline underline-offset-4 hover:text-waystar"
+          >
+            Create an account
+          </Link>
+          .
+        </p>
+      )}
     </div>
   );
 }
