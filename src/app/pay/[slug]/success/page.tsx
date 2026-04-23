@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { DEMO_PAGES, formatMoney } from "@/lib/demo-data";
+import { formatMoney } from "@/lib/demo-data";
+import { getPaymentPageBySlug } from "@/db/queries";
 import { Wordmark, ShieldBadge } from "@/components/wordmark";
 
 export default async function SuccessPage({
@@ -17,7 +18,7 @@ export default async function SuccessPage({
 }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const config = DEMO_PAGES[slug];
+  const config = await getPaymentPageBySlug(slug);
   const amount = Number(sp.amount ?? 0);
   const plan = sp.plan ? Number(sp.plan) : null;
   const installment = sp.installment ? Number(sp.installment) : 1;
