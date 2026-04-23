@@ -6,6 +6,7 @@ import { getPaymentPageBySlug } from "@/db/queries";
 import { Wordmark, ShieldBadge } from "@/components/wordmark";
 import { CountUp } from "@/components/count-up";
 import { PaymentForm } from "./payment-form";
+import { PlanNegotiator } from "./plan-negotiator";
 
 export default async function PaymentPage({
   params,
@@ -85,7 +86,13 @@ export default async function PaymentPage({
             {config.amountMode === "fixed" &&
               config.allowPlans &&
               !planChoice && (
-                <PlanOptions slug={config.slug} total={config.fixedAmount!} />
+                <>
+                  <PlanOptions slug={config.slug} total={config.fixedAmount!} />
+                  <PlanNegotiator
+                    slug={config.slug}
+                    totalCents={config.fixedAmount!}
+                  />
+                </>
               )}
             {planChoice && config.fixedAmount && (
               <p className="mt-3 text-[13px] text-ink-muted">
